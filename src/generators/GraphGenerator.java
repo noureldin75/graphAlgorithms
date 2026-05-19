@@ -1,9 +1,10 @@
 package generators;
 
 import core.Edge;
+import core.Graph;
 
 import java.util.List;
 
 public interface GraphGenerator {
-    List<List<Edge>> generateGraph(int numVertices,long seed);
+    Graph generateGraph(int numVertices, long seed);
 }

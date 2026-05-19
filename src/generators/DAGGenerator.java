@@ -1,21 +1,21 @@
 package generators;
 
 import core.Edge;
+import core.Graph;
 
+import java.lang.reflect.GenericArrayType;
 import java.util.*;
 
 public class DAGGenerator implements GraphGenerator {
     @Override
-    public List<List<Edge>> generateGraph(int V, long seed) {
-        List<List<Edge>> adjlist = new ArrayList<>();
+    public Graph generateGraph(int V, long seed) {
+        Graph graph = new Graph(V);
         Random rand = new Random(seed);
         int [] vertices = new int[V];
         for (int i = 0; i < V; i++) {
             vertices[i] = i;
-            adjlist.add(new ArrayList<>());
         }
 
-        //manual shuffle as collections shuffle doesnt work on arrays
         for (int i = V - 1; i > 0; i--) {
             int j = rand.nextInt(i + 1);
             int temp = vertices[i];
@@ -30,8 +30,7 @@ public class DAGGenerator implements GraphGenerator {
             int v      = vertices[i + 1];
             int weight = rand.nextInt(1000) + 1;
 
-            adjlist.get(u).add(new Edge(u, v, weight));
-
+            graph.addDirectedEdge(u, v, weight);
             seenEdges.add(getEdgeHash(u, v));
             edgeCount++;
         }
@@ -52,13 +51,13 @@ public class DAGGenerator implements GraphGenerator {
             if (!seenEdges.contains(edgeHash)) {
                 int weight = rand.nextInt(1000) + 1;
 
-                adjlist.get(u).add(new Edge(u, v, weight));
+                graph.addDirectedEdge(u, v, weight);
                 seenEdges.add(edgeHash);
                 edgeCount++;
             }
         }
 
-        return adjlist;
+        return graph;
 
 
     }

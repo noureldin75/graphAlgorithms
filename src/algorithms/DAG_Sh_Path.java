@@ -6,8 +6,8 @@ import java.util.List;
 import java.util.Stack;
 
 public class DAG_Sh_Path {
-    static final byte NOT_VISITED = 0;
-    static final byte PROCESSING = 1;
+    static final byte not_visited = 0;
+    static final byte processing = 1;
     static final byte VISITED = 2;
 
     private int v;
@@ -22,11 +22,11 @@ public class DAG_Sh_Path {
 
     public int[] dagShortestPath(int source, List<List<Edge>> adjlist) {
         Stack<Integer> st = new Stack<>();
-        Arrays.fill(state, NOT_VISITED);
+        Arrays.fill(state, not_visited);
         Arrays.fill(dist, Integer.MAX_VALUE);
 
         for (int i = 0; i < v; i++) {
-            if (state[i] == NOT_VISITED) {
+            if (state[i] == not_visited) {
                 DFS(adjlist, i, st);
             }
         }
@@ -52,16 +52,16 @@ public class DAG_Sh_Path {
     }
 
     private void DFS(List<List<Edge>> adjlist, int node, Stack<Integer> st) {
-        state[node] = PROCESSING;
+        state[node] = processing;
 
         for (Edge edge : adjlist.get(node)) {
             int to = edge.v();
 
-            if (state[to] == PROCESSING) {
+            if (state[to] == processing) {
                 throw new IllegalArgumentException("Cycle detected! Graph is not a DAG.");
             }
 
-            if (state[to] == NOT_VISITED) {
+            if (state[to] == not_visited) {
                 DFS(adjlist, to, st);
             }
         }
