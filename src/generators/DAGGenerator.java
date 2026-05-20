@@ -1,52 +1,35 @@
 package generators;
 
-import core.Edge;
 import core.Graph;
-
-import java.lang.reflect.GenericArrayType;
 import java.util.*;
 
 public class DAGGenerator implements GraphGenerator {
+
     @Override
     public Graph generateGraph(int V, long seed) {
         Graph graph = new Graph(V);
         Random rand = new Random(seed);
-        int [] vertices = new int[V];
-        for (int i = 0; i < V; i++) {
-            vertices[i] = i;
-        }
 
-        for (int i = V - 1; i > 0; i--) {
-            int j = rand.nextInt(i + 1);
-            int temp = vertices[i];
-            vertices[i] = vertices[j];
-            vertices[j] = temp;
-        }
         Set<Long> seenEdges = new HashSet<>();
-        int edgeCount = 0;
         int targetEdges = 5 * V;
-        for (int i = 0; i < V - 1; i++) {
-            int u      = vertices[i];
-            int v      = vertices[i + 1];
+        int edgeCount = 0;
+
+
+        for (int v = 1; v < V; v++) {
+            int u = rand.nextInt(v);
             int weight = rand.nextInt(1000) + 1;
 
             graph.addDirectedEdge(u, v, weight);
-            seenEdges.add(getEdgeHash(u, v));
+            seenEdges.add((long) u * 100_000L + v);
             edgeCount++;
         }
-        int[] rank = new int[V];
-
-        for (int i = 0; i < V; i++)
-            rank[vertices[i]] = i;
 
         while (edgeCount < targetEdges) {
-            int u = rand.nextInt(V);
-            int v = rand.nextInt(V);
+            int u = rand.nextInt(V - 1);
+            int remaining = V - 1 - u;
+            int v = u + 1 + rand.nextInt(remaining);
 
-            // Only allow forward edges (no cycles)
-            if (rank[u] >= rank[v]) continue;
-
-            long edgeHash = getEdgeHash(u, v);
+            long edgeHash = (long) u * 100_000L + v;
 
             if (!seenEdges.contains(edgeHash)) {
                 int weight = rand.nextInt(1000) + 1;
@@ -58,11 +41,5 @@ public class DAGGenerator implements GraphGenerator {
         }
 
         return graph;
-
-
     }
-    private long getEdgeHash(int u, int v) {
-        return (long) u * 100000L + v;
-    }
-
 }

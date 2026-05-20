@@ -7,9 +7,10 @@ import java.util.Comparator;
 import java.util.List;
 import java.util.PriorityQueue;
 
-record Pair(int vertex, int weight) {}
 
 public class prims {
+    private record Pair(int vertex, int weight) {}
+
     private final int V;
     private boolean[] visited;
     private int[] parent;

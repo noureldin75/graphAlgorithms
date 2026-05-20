@@ -7,9 +7,10 @@ import java.util.Comparator;
 import java.util.List;
 import java.util.PriorityQueue;
 
-record pair(int vertex,int weight){}
 
 public class Dijkstra {
+    private record pair(int vertex, int weight) {}
+
     int v;
     private int[] dist;
 

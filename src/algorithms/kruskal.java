@@ -22,15 +22,14 @@ public class kruskal {
         alledges.sort(Comparator.comparingInt(Edge::weight));
         List<Edge> mst = new java.util.ArrayList<>();
         for (Edge edge : alledges) {
-
             int u = edge.u();
-            int v = edge.v();
+            int to = edge.v();          // renamed
             int rootU = find(u);
-            int rootV = find(v);
+            int rootV = find(to);       // renamed
             if (rootU != rootV) {
                 mst.add(edge);
-                union(rootU, rootV);  //nb3t elroots 34an nwafr 3ala elunion bdl m n3ml find tany
-                if (mst.size() == v - 1) break;
+                union(rootU, rootV);
+                if (mst.size() == this.v - 1) break;  // now correctly refers to vertex count
             }
         }
         return mst;
