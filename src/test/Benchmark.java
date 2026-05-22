@@ -10,267 +10,219 @@ import java.util.Random;
 
 public class Benchmark {
 
-    private static final int RUNS = 5;         // Required by assignment (§4.2)
-    private static final int WARMUP_RUNS = 2;  // JVM warm-up for accurate measurement
-    private static final int V_SIZE = 5000;    // Fixed size required by assignment (§3)
-    private static final long BASE_SEED = 42L;
-    private static final int DAG_SOURCE = 0;   // vertex 0 reaches all vertices in DAG
-
-    private static final BenchmarkResults results = new BenchmarkResults();
+    private static final int    RUNS        = 5;
+    private static final int    WARMUP_RUNS = 10;
+    private static final int    V_SIZE      = 5_000;
+    private static final long   BASE_SEED   = 42L;
+    private static final int    DAG_SOURCE  = 0;
 
     public static void main(String[] args) {
 
-        System.out.println("=".repeat(100));
-        System.out.println("                        GRAPH ALGORITHMS  -  BENCHMARK REPORT");
-        System.out.println("=".repeat(100));
-        System.out.printf("  Warm-up runs    : %d%n", WARMUP_RUNS);
-        System.out.printf("  Measured runs   : %d%n", RUNS);
-        System.out.printf("  Vertex size (V) : %d%n", V_SIZE);
-        System.out.printf("  Random seed     : %d%n", BASE_SEED);
-        System.out.println("=".repeat(100));
-        System.out.println();
+        BenchmarkResults results = new BenchmarkResults();
 
-        // Fixed random source for SSSP (§4.2: "same input")
-        Random srcRand = new Random(BASE_SEED);
-        int source = srcRand.nextInt(V_SIZE);
+        header("GRAPH ALGORITHMS  –  BENCHMARK REPORT");
+        System.out.printf("  Runs: %d  |  Warm-up: %d  |  V = %,d  |  Seed = %d%n",
+                RUNS, WARMUP_RUNS, V_SIZE, BASE_SEED);
+        divider('=');
 
-        // ── MST Construction (Prim vs Kruskal) ──────────────────────
-        System.out.println("─".repeat(105));
-        System.out.println("  1. MST Construction  -  Prim's  vs  Kruskal's");
-        System.out.println("─".repeat(105));
+        // fixed source, same across all SSSP runs
+        int source = new Random(BASE_SEED).nextInt(V_SIZE);
 
-        GraphGenerator[] mstGenerators = {
-                new SparseGraphGenerator(),
+        // ── 1. MST: Prim vs Kruskal
+        section("1.  MST Construction  –  Prim's vs Kruskal's  (Sparse / Dense / Complete)");
+
+        GraphGenerator[] mstGens  = { new SparseGraphGenerator(),
                 new DenseGraphGenerator(),
-                new CompleteGraphGenerator()
-        };
-        String[] mstNames = {"3.1 Sparse", "3.2 Dense", "3.3 Complete"};
+                new CompleteGraphGenerator() };
+        String[]         mstTags  = { "Sparse", "Dense", "Complete" };
 
-        printTableHeader("Graph", "Prim median(ms)", "Prim mean(ms)", "Prim stddev",
-                "Kruskal median(ms)", "Kruskal mean(ms)", "Kruskal stddev");
+        System.out.printf("  %-10s | %10s %10s %10s | %10s %10s %10s | %s%n",
+                "Graph", "Prim med", "Prim mean", "Prim σ",
+                "Krus med", "Krus mean", "Krus σ", "Speed-up");
+        thinDivider(95);
 
-        for (int gi = 0; gi < mstGenerators.length; gi++) {
-            Graph graph = mstGenerators[gi].generateGraph(V_SIZE, BASE_SEED);
+        for (int i = 0; i < mstGens.length; i++) {
+            // competing algorithms run on the EXACT same graph instance
+            Graph g = mstGens[i].generateGraph(V_SIZE, BASE_SEED);
 
-            // Warm-up JVM
-            for (int i = 0; i < WARMUP_RUNS; i++) {
-                graph.primMST();
-                graph.kruskalMST();
-            }
+            warmup(g, false);   // false = undirected (MST warm-up)
 
-            String distName = mstNames[gi].replaceFirst("^\\S+\\s+", ""); // "Sparse", "Dense", ...
-
-            // Isolated Loop for Prim (CPU Cache Locality)
-            long[] primTimes = new long[RUNS];
-            for (int r = 0; r < RUNS; r++) {
-                long t0 = System.nanoTime();
-                List<Edge> mst = graph.primMST();
-                long t1 = System.nanoTime();
-                primTimes[r] = t1 - t0;
-                results.addResult(r + 1, "Prim", distName, V_SIZE, primTimes[r],
-                        mst.size(), totalWeight(mst));
-            }
-
-            // Isolated Loop for Kruskal (CPU Cache Locality)
+            long[] primTimes    = new long[RUNS];
             long[] kruskalTimes = new long[RUNS];
+
+            // Compute MST once to get edge count and total weight for CSV
+            List<Edge> mstResult = g.primMST();
+            long mstEdges = mstResult.size();
+            long mstWeight = 0;
+            for (Edge e : mstResult) mstWeight += e.weight();
+
+            // Isolated loops keep CPU branch-predictor & cache state fair
             for (int r = 0; r < RUNS; r++) {
-                long t0 = System.nanoTime();
-                List<Edge> mst = graph.kruskalMST();
-                long t1 = System.nanoTime();
-                kruskalTimes[r] = t1 - t0;
-                results.addResult(r + 1, "Kruskal", distName, V_SIZE, kruskalTimes[r],
-                        mst.size(), totalWeight(mst));
+                long t = System.nanoTime(); g.primMST();    primTimes[r]    = System.nanoTime() - t;
+                results.addResult(r + 1, "Prim", mstTags[i], V_SIZE, primTimes[r], mstEdges, mstWeight);
+            }
+            for (int r = 0; r < RUNS; r++) {
+                long t = System.nanoTime(); g.kruskalMST(); kruskalTimes[r] = System.nanoTime() - t;
+                results.addResult(r + 1, "Kruskal", mstTags[i], V_SIZE, kruskalTimes[r], mstEdges, mstWeight);
             }
 
-            printTableRow(mstNames[gi], primTimes, kruskalTimes);
+            double primMed = median(primTimes);
+            double krusMed = median(kruskalTimes);
+            double speedup = (primMed > 0) ? krusMed / primMed : Double.NaN;
+
+            System.out.printf("  %-10s | %10.3f %10.3f %10.3f | %10.3f %10.3f %10.3f | %.2fx%n",
+                    mstTags[i],
+                    primMed,  mean(primTimes),  stddev(primTimes),
+                    krusMed, mean(kruskalTimes), stddev(kruskalTimes),
+                    speedup);
         }
+        System.out.println("  (all times in ms)");
 
-        // ── SSSP (General) Dijkstra ─────────────────────────────────
-        System.out.println();
-        System.out.println("─".repeat(70));
-        System.out.println("  2. SSSP (General)  -  Dijkstra's Algorithm");
-        System.out.println("─".repeat(70));
+        // ── 2. SSSP Dijkstra on all four distributions (§4.1.2) ─────────────
+        section("2.  SSSP (General)  –  Dijkstra's Algorithm  (all distributions)");
 
-        GraphGenerator[] allGenerators = {
-                new SparseGraphGenerator(),
+        GraphGenerator[] allGens = { new SparseGraphGenerator(),
                 new DenseGraphGenerator(),
                 new CompleteGraphGenerator(),
-                new DAGGenerator()
-        };
-        String[] allNames = {"3.1 Sparse", "3.2 Dense", "3.3 Complete", "3.4 DAG"};
+                new DAGGenerator() };
+        String[]         allTags = { "Sparse", "Dense", "Complete", "DAG" };
 
-        printSingleHeader("Graph", "Dijkstra median(ms)", "Dijkstra mean(ms)", "Dijkstra stddev");
+        System.out.printf("  %-10s | %12s %12s %12s%n",
+                "Graph", "Median (ms)", "Mean (ms)", "Std Dev (ms)");
+        thinDivider(54);
 
-        for (int gi = 0; gi < allGenerators.length; gi++) {
-            Graph graph = allGenerators[gi].generateGraph(V_SIZE, BASE_SEED);
-            // For DAG, use DAG_SOURCE (root that reaches all vertices)
-            int ssspSource = (allGenerators[gi] instanceof DAGGenerator) ? DAG_SOURCE : source;
-            String distName = allNames[gi].replaceFirst("^\\S+\\s+", "");
+        for (int i = 0; i < allGens.length; i++) {
+            Graph g      = allGens[i].generateGraph(V_SIZE, BASE_SEED);
+            int   src    = (allGens[i] instanceof DAGGenerator) ? DAG_SOURCE : source;
+            long[] times = new long[RUNS];
 
-            // Warm-up JVM
-            for (int i = 0; i < WARMUP_RUNS; i++) {
-                graph.dijkstra(ssspSource);
+            for (int w = 0; w < WARMUP_RUNS; w++) g.dijkstra(src);
+
+            // Run Dijkstra once to get reachable count and distance sum for CSV
+            int[] dists = g.dijkstra(src);
+            long reachable = 0, distSum = 0;
+            for (int d : dists) {
+                if (d < Integer.MAX_VALUE) { reachable++; distSum += d; }
             }
 
-            long[] dijkstraTimes = new long[RUNS];
             for (int r = 0; r < RUNS; r++) {
-                long t0 = System.nanoTime();
-                int[] dist = graph.dijkstra(ssspSource);
-                long t1 = System.nanoTime();
-                dijkstraTimes[r] = t1 - t0;
-                results.addResult(r + 1, "Dijkstra", distName, V_SIZE, dijkstraTimes[r],
-                        reachableCount(dist), distSum(dist));
+                long t = System.nanoTime(); g.dijkstra(src); times[r] = System.nanoTime() - t;
+                results.addResult(r + 1, "Dijkstra", allTags[i], V_SIZE, times[r], reachable, distSum);
             }
 
-            printSingleRow(allNames[gi], dijkstraTimes);
+            System.out.printf("  %-10s | %12.3f %12.3f %12.3f%n",
+                    allTags[i], median(times), mean(times), stddev(times));
         }
+        System.out.println("  (all times in ms)");
 
-        // ── SSSP (DAG) Dijkstra vs DAG Shortest Path ────────────────
-        System.out.println();
-        System.out.println("─".repeat(95));
-        System.out.println("  3. SSSP (DAG)  -  Dijkstra  vs  DAG Shortest Path");
-        System.out.println("─".repeat(95));
+        // ── 3. SSSP DAG: Dijkstra vs DAG Shortest Path (§4.1.3) ─────────────
+        section("3.  SSSP (DAG)  –  Dijkstra  vs  DAG Shortest Path");
 
-        printDagHeader();
-
+        // exact same graph instance for both algorithms
         Graph dagGraph = new DAGGenerator().generateGraph(V_SIZE, BASE_SEED);
 
-        // Warm-up JVM (both algorithms on same graph instance)
-        for (int i = 0; i < WARMUP_RUNS; i++) {
+        for (int w = 0; w < WARMUP_RUNS; w++) {
             dagGraph.dijkstra(DAG_SOURCE);
             dagGraph.dagShortestPath(DAG_SOURCE);
         }
 
-        // Isolated Loop for Dijkstra
+        // Compute DAG distances once for CSV metadata
+        int[] dagDists = dagGraph.dijkstra(DAG_SOURCE);
+        long dagReachable = 0, dagDistSum = 0;
+        for (int d : dagDists) {
+            if (d < Integer.MAX_VALUE) { dagReachable++; dagDistSum += d; }
+        }
+
         long[] dijkTimes = new long[RUNS];
+        long[] dagTimes  = new long[RUNS];
+
         for (int r = 0; r < RUNS; r++) {
-            long t0 = System.nanoTime();
-            int[] dist = dagGraph.dijkstra(DAG_SOURCE);
-            long t1 = System.nanoTime();
-            dijkTimes[r] = t1 - t0;
-            results.addResult(r + 1, "Dijkstra", "DAG", V_SIZE, dijkTimes[r],
-                    reachableCount(dist), distSum(dist));
+            long t = System.nanoTime(); dagGraph.dijkstra(DAG_SOURCE);       dijkTimes[r] = System.nanoTime() - t;
+            results.addResult(r + 1, "Dijkstra", "DAG", V_SIZE, dijkTimes[r], dagReachable, dagDistSum);
+        }
+        for (int r = 0; r < RUNS; r++) {
+            long t = System.nanoTime(); dagGraph.dagShortestPath(DAG_SOURCE); dagTimes[r]  = System.nanoTime() - t;
+            results.addResult(r + 1, "DAG-SP", "DAG", V_SIZE, dagTimes[r], dagReachable, dagDistSum);
         }
 
-        // Isolated Loop for DAG Shortest Path
-        long[] dagTimes = new long[RUNS];
-        for (int r = 0; r < RUNS; r++) {
-            long t0 = System.nanoTime();
-            int[] dist = dagGraph.dagShortestPath(DAG_SOURCE);
-            long t1 = System.nanoTime();
-            dagTimes[r] = t1 - t0;
-            results.addResult(r + 1, "DAG-SP", "DAG", V_SIZE, dagTimes[r],
-                    reachableCount(dist), distSum(dist));
-        }
+        double dijkMed  = median(dijkTimes);
+        double dagMed   = median(dagTimes);
+        double speedup  = (dagMed > 0) ? dijkMed / dagMed : Double.NaN;
+        double pct      = (speedup - 1.0) * 100.0;
 
-        printDagRow("3.4 DAG", dijkTimes, dagTimes);
+        System.out.printf("  %-12s | %10s %10s %10s | %10s %10s %10s | %s%n",
+                "Graph", "Dijk med", "Dijk mean", "Dijk σ",
+                "DAG med",  "DAG mean",  "DAG σ",  "Speed-up");
+        thinDivider(95);
+        System.out.printf("  %-12s | %10.3f %10.3f %10.3f | %10.3f %10.3f %10.3f | %.2fx (%+.1f%%)%n",
+                "DAG",
+                dijkMed,          mean(dijkTimes), stddev(dijkTimes),
+                dagMed,           mean(dagTimes),  stddev(dagTimes),
+                speedup, pct);
+        System.out.println("  (all times in ms)");
 
-        // Correctness verification: both algorithms must produce the same result
-        int[] dijkResult = dagGraph.dijkstra(DAG_SOURCE);
-        int[] dagResult  = dagGraph.dagShortestPath(DAG_SOURCE);
-        boolean match = Arrays.equals(dijkResult, dagResult);
-        System.out.printf("%n  Correctness check: Dijkstra == DAG Shortest Path -> %s%n",
-                match ? "PASS" : "FAIL");
+        // correctness – both must produce identical distances
+        boolean match = Arrays.equals(
+                dagGraph.dijkstra(DAG_SOURCE),
+                dagGraph.dagShortestPath(DAG_SOURCE));
+        System.out.printf("%n  Correctness check  Dijkstra == DAG-SP : %s%n",
+                match ? "PASS ✓" : "FAIL ✗");
 
-        // ── CSV Export ────────────────────────────────────────────
+        // ── CSV export ───────────────────────────────────────────────────────
+
         results.exportToCSV("benchmark_results.csv");
 
+        divider('=');
+        System.out.println("  Benchmark complete.");
+        divider('=');
+    }
+
+    // ── Statistics ────────────────────────────────────────────────────────────
+
+    private static double median(long[] ns) {
+        long[] s = ns.clone(); Arrays.sort(s);
+        int n = s.length;
+        return (n % 2 == 0 ? (s[n/2-1] + s[n/2]) / 2.0 : s[n/2]) / 1_000_000.0;
+    }
+
+    private static double mean(long[] ns) {
+        double sum = 0; for (long v : ns) sum += v;
+        return sum / ns.length / 1_000_000.0;
+    }
+
+    private static double stddev(long[] ns) {
+        double m = mean(ns) * 1_000_000.0, sq = 0;
+        for (long v : ns) sq += (v - m) * (v - m);
+        return Math.sqrt(sq / ns.length) / 1_000_000.0;
+    }
+
+    // ── Warm-up helpers ───────────────────────────────────────────────────────
+
+    private static void warmup(Graph g, boolean directed) {
+        for (int i = 0; i < WARMUP_RUNS; i++) {
+            g.primMST();
+            g.kruskalMST();
+        }
+    }
+
+    // ── Formatting helpers ────────────────────────────────────────────────────
+
+    private static void header(String title) {
+        divider('=');
+        System.out.println("  " + title);
+    }
+
+    private static void section(String title) {
         System.out.println();
-        System.out.println("=".repeat(100));
-        System.out.println("  Benchmark complete.  (" + results.size() + " rows exported)");
-        System.out.println("=".repeat(100));
+        System.out.println("  ── " + title);
+        System.out.println();
     }
 
-    // ── Result helpers ─────────────────────────────────────────
-
-    private static long totalWeight(List<Edge> mst) {
-        long sum = 0;
-        for (Edge e : mst) sum += e.weight();
-        return sum;
+    private static void divider(char c) {
+        System.out.println("  " + String.valueOf(c).repeat(90));
     }
 
-    private static long reachableCount(int[] dist) {
-        long count = 0;
-        for (int d : dist) if (d != Integer.MAX_VALUE) count++;
-        return count;
-    }
-
-    private static long distSum(int[] dist) {
-        long sum = 0;
-        for (int d : dist) if (d != Integer.MAX_VALUE) sum += d;
-        return sum;
-    }
-
-    // ── Statistics helpers ──────────────────────────────────────
-
-    private static double medianMs(long[] nanos) {
-        long[] sorted = nanos.clone();
-        Arrays.sort(sorted);
-        int n = sorted.length;
-        if (n % 2 == 0)
-            return (sorted[n / 2 - 1] + sorted[n / 2]) / 2.0 / 1_000_000.0;
-        else
-            return sorted[n / 2] / 1_000_000.0;
-    }
-
-    private static double meanMs(long[] nanos) {
-        double sum = 0;
-        for (long t : nanos) sum += t;
-        return (sum / nanos.length) / 1_000_000.0;
-    }
-
-    private static double stddevMs(long[] nanos) {
-        double mean = meanMs(nanos) * 1_000_000.0;
-        double sumSq = 0;
-        for (long t : nanos) sumSq += (t - mean) * (t - mean);
-        return Math.sqrt(sumSq / nanos.length) / 1_000_000.0;
-    }
-
-    // ── Printing helpers ────────────────────────────────────────
-
-    private static void printTableHeader(String... cols) {
-        System.out.printf("  %-12s | %-15s %-13s %-11s | %-18s %-16s %-14s%n",
-                cols[0], cols[1], cols[2], cols[3], cols[4], cols[5], cols[6]);
-        System.out.println("  " + "-".repeat(101));
-    }
-
-    private static void printTableRow(String graphName, long[] t1, long[] t2) {
-        System.out.printf("  %-12s | %15.3f   %13.3f   %11.3f   | %18.3f   %16.3f   %14.3f%n",
-                graphName,
-                medianMs(t1), meanMs(t1), stddevMs(t1),
-                medianMs(t2), meanMs(t2), stddevMs(t2));
-    }
-
-    private static void printSingleHeader(String... cols) {
-        System.out.printf("  %-12s | %-19s %-17s %-15s%n",
-                cols[0], cols[1], cols[2], cols[3]);
-        System.out.println("  " + "-".repeat(68));
-    }
-
-    private static void printSingleRow(String graphName, long[] t) {
-        System.out.printf("  %-12s | %19.3f   %17.3f   %15.3f%n",
-                graphName, medianMs(t), meanMs(t), stddevMs(t));
-    }
-
-    private static void printDagHeader() {
-        System.out.printf("  %-12s | %-12s %-10s %-8s | %-12s %-10s %-8s | %-10s%n",
-                "Graph",
-                "Dijk median", "Dijk mean", "Dijk std",
-                "DAG median", "DAG mean", "DAG std",
-                "Speed-up");
-        System.out.println("  " + "-".repeat(93));
-    }
-
-    private static void printDagRow(String graphName, long[] dijkstra, long[] dag) {
-        double dijkMedian = medianMs(dijkstra);
-        double dagMedian = medianMs(dag);
-        double speedup = (dagMedian > 0) ? dijkMedian / dagMedian : Double.NaN;
-        double speedupPct = (speedup - 1.0) * 100.0;
-
-        System.out.printf("  %-12s | %12.3f   %10.3f   %8.3f   | %12.3f   %10.3f   %8.3f   | %7.2fx (%+.1f%%)%n",
-                graphName,
-                dijkMedian, meanMs(dijkstra), stddevMs(dijkstra),
-                dagMedian, meanMs(dag), stddevMs(dag),
-                speedup, speedupPct);
+    private static void thinDivider(int len) {
+        System.out.println("  " + "-".repeat(len));
     }
 }
