@@ -1,63 +1,49 @@
 package test.algorithms;
 
 import core.Graph;
+import org.junit.jupiter.api.Test;
 
-import java.util.Arrays;
+import static org.junit.jupiter.api.Assertions.*;
 
 
 public class DijkstraTest {
 
-    private static int passed = 0, failed = 0;
-
-    public static void main(String[] args) {
-        System.out.println("═══ DijkstraTest ═══");
-
-        testSimplePath();
-        testUnreachableVertex();
-        testDirectedGraph();
-
-        System.out.printf("%n  Results: %d passed, %d failed%n", passed, failed);
-        if (failed > 0) System.exit(1);
-    }
-
     // 0--1(2), 1--2(3), 0--2(10) → dist[0]=0, dist[1]=2, dist[2]=5
-    static void testSimplePath() {
+    @Test
+    void testSimplePath() {
         Graph g = new Graph(3);
         g.addEdge(0, 1, 2);
         g.addEdge(1, 2, 3);
         g.addEdge(0, 2, 10);
 
         int[] dist = g.dijkstra(0);
-        check("dist[0] == 0", dist[0] == 0);
-        check("dist[1] == 2", dist[1] == 2);
-        check("dist[2] == 5 (via 0→1→2)", dist[2] == 5);
+        assertEquals(0, dist[0], "dist[0] == 0");
+        assertEquals(2, dist[1], "dist[1] == 2");
+        assertEquals(5, dist[2], "dist[2] == 5 (via 0→1→2)");
     }
 
     // Vertex 2 has no path from source 0 in a directed graph
-    static void testUnreachableVertex() {
+    @Test
+    void testUnreachableVertex() {
         Graph g = new Graph(3);
         g.addDirectedEdge(0, 1, 5);
         // no edge to 2
 
         int[] dist = g.dijkstra(0);
-        check("dist[0] == 0", dist[0] == 0);
-        check("dist[1] == 5", dist[1] == 5);
-        check("dist[2] == MAX (unreachable)", dist[2] == Integer.MAX_VALUE);
+        assertEquals(0, dist[0], "dist[0] == 0");
+        assertEquals(5, dist[1], "dist[1] == 5");
+        assertEquals(Integer.MAX_VALUE, dist[2], "dist[2] == MAX (unreachable)");
     }
 
     // 0→1(1), 0→2(4), 1→2(2) → dist[2] = 3
-    static void testDirectedGraph() {
+    @Test
+    void testDirectedGraph() {
         Graph g = new Graph(3);
         g.addDirectedEdge(0, 1, 1);
         g.addDirectedEdge(0, 2, 4);
         g.addDirectedEdge(1, 2, 2);
 
         int[] dist = g.dijkstra(0);
-        check("directed dist[2] == 3 (via 0→1→2)", dist[2] == 3);
-    }
-
-    private static void check(String name, boolean condition) {
-        if (condition) { System.out.println("  ✓ " + name); passed++; }
-        else           { System.out.println("  ✗ " + name); failed++; }
+        assertEquals(3, dist[2], "directed dist[2] == 3 (via 0→1→2)");
     }
 }

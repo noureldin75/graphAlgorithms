@@ -6,16 +6,9 @@ import java.io.PrintWriter;
 import java.util.ArrayList;
 import java.util.List;
 
-/**
- * Collects per-run benchmark results and exports them to CSV.
- *
- * Each row represents a single run of a single algorithm on a single
- * graph distribution, matching the format:
- *   Run, Algorithm, Distribution, V, Time_ms, EdgesOrReachable, TotalWeightOrV
- */
+
 public class BenchmarkResults {
 
-    /** One row of benchmark data. */
     private record Row(
             int run,
             String algorithm,
@@ -28,19 +21,8 @@ public class BenchmarkResults {
 
     private final List<Row> rows = new ArrayList<>();
 
-    // ── Recording API ──────────────────────────────────────────
 
-    /**
-     * Add a single run result.
-     *
-     * @param run              1-based run number
-     * @param algorithm        e.g. "Kruskal", "Prim", "Dijkstra", "DAG-SP"
-     * @param distribution     e.g. "Sparse", "Dense", "Complete", "DAG"
-     * @param v                number of vertices
-     * @param timeNanos        elapsed time in nanoseconds
-     * @param edgesOrReachable edge count (MST) or reachable vertex count (SSSP)
-     * @param totalWeightOrV   total MST weight or sum of distances (SSSP)
-     */
+
     public void addResult(int run, String algorithm, String distribution,
                           int v, long timeNanos,
                           long edgesOrReachable, long totalWeightOrV) {
@@ -49,13 +31,7 @@ public class BenchmarkResults {
                 edgesOrReachable, totalWeightOrV));
     }
 
-    // ── CSV Export ──────────────────────────────────────────────
 
-    /**
-     * Write all collected results to a CSV file.
-     *
-     * @param filePath path for the output CSV (e.g. "benchmark_results.csv")
-     */
     public void exportToCSV(String filePath) {
         try (PrintWriter pw = new PrintWriter(new FileWriter(filePath))) {
             // Header
@@ -75,11 +51,7 @@ public class BenchmarkResults {
         }
     }
 
-    // ── Console Preview ────────────────────────────────────────
 
-    /**
-     * Print a formatted table of all results to stdout.
-     */
     public void printTable() {
         System.out.println();
         System.out.printf("  %-5s %-10s %-12s %6s %12s %18s %16s%n",
@@ -95,7 +67,6 @@ public class BenchmarkResults {
         }
     }
 
-    /** @return total number of recorded rows */
     public int size() {
         return rows.size();
     }

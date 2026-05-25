@@ -57,7 +57,7 @@ public class Graph {
 
     public List<Edge> kruskalMST() {
         kruskal k = new kruskal(V);
-        return k.kruskalMst(new ArrayList<>(edgeList)); // copy so original isn't sorted
+        return k.kruskalMst(new ArrayList<>(edgeList));
     }
 
     public int[] dijkstra(int source) {

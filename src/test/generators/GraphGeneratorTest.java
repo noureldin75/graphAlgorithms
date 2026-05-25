@@ -3,121 +3,103 @@ package test.generators;
 import core.Edge;
 import core.Graph;
 import generators.*;
+import org.junit.jupiter.api.Test;
 
 import java.util.*;
 
-/**
- * Tests for all graph generators: edge counts, connectivity, and DAG acyclicity.
- */
-public class GraphGeneratorTest {
+import static org.junit.jupiter.api.Assertions.*;
 
-    private static int passed = 0, failed = 0;
+
+public class GraphGeneratorTest {
 
     private static final int V = 500;        // smaller V for fast tests
     private static final long SEED = 12345L;
 
-    public static void main(String[] args) {
-        System.out.println("═══ GraphGeneratorTest ═══");
+    // sparse: E = 5*V
 
-        testSparseEdgeCount();
-        testSparseConnectivity();
-        testDenseEdgeCountAboveSparse();
-        testDenseConnectivity();
-        testCompleteEdgeCount();
-        testCompleteConnectivity();
-        testDAGEdgeCount();
-        testDAGIsAcyclic();
-        testDeterministic();
-
-        System.out.printf("%n  Results: %d passed, %d failed%n", passed, failed);
-        if (failed > 0) System.exit(1);
-    }
-
-    // ── Sparse: E = 5*V ────────────────────────────────────────
-
-    static void testSparseEdgeCount() {
+    @Test
+    void testSparseEdgeCount() {
         Graph g = new SparseGraphGenerator().generateGraph(V, SEED);
         int expected = 5 * V;
-        check("Sparse edge count = 5V (" + expected + ")", g.getEdgeList().size() == expected);
+        assertEquals(expected, g.getEdgeList().size(), "Sparse edge count = 5V (" + expected + ")");
     }
 
-    static void testSparseConnectivity() {
+    @Test
+    void testSparseConnectivity() {
         Graph g = new SparseGraphGenerator().generateGraph(V, SEED);
-        check("Sparse graph is connected", isConnected(g));
+        assertTrue(isConnected(g), "Sparse graph is connected");
     }
 
-    // ── Dense: more edges than sparse, connected ───────────────
-
-    static void testDenseEdgeCountAboveSparse() {
+    // Dense: more edges than sparse, connected
+    @Test
+    void testDenseEdgeCountAboveSparse() {
         Graph gDense  = new DenseGraphGenerator().generateGraph(V, SEED);
         Graph gSparse = new SparseGraphGenerator().generateGraph(V, SEED);
-        check("Dense has more edges than Sparse",
-                gDense.getEdgeList().size() > gSparse.getEdgeList().size());
+        assertTrue(gDense.getEdgeList().size() > gSparse.getEdgeList().size(),
+                "Dense has more edges than Sparse");
     }
 
-    static void testDenseConnectivity() {
+    @Test
+    void testDenseConnectivity() {
         Graph g = new DenseGraphGenerator().generateGraph(V, SEED);
-        check("Dense graph is connected", isConnected(g));
+        assertTrue(isConnected(g), "Dense graph is connected");
     }
 
-    // ── Complete: E = V*(V-1)/2 ────────────────────────────────
+    //  Complete: E = V*(V-1)/2
 
-    static void testCompleteEdgeCount() {
+    @Test
+    void testCompleteEdgeCount() {
         int smallV = 100; // keep manageable
         Graph g = new CompleteGraphGenerator().generateGraph(smallV, SEED);
         int expected = smallV * (smallV - 1) / 2;
-        check("Complete edge count = V(V-1)/2 (" + expected + ")", g.getEdgeList().size() == expected);
+        assertEquals(expected, g.getEdgeList().size(),
+                "Complete edge count = V(V-1)/2 (" + expected + ")");
     }
 
-    static void testCompleteConnectivity() {
+    @Test
+    void testCompleteConnectivity() {
         Graph g = new CompleteGraphGenerator().generateGraph(100, SEED);
-        check("Complete graph is connected", isConnected(g));
+        assertTrue(isConnected(g), "Complete graph is connected");
     }
 
-    // ── DAG: E = 5*V, no cycles ────────────────────────────────
+    // DAG: E = 5*V, no cycles
 
-    static void testDAGEdgeCount() {
+    @Test
+    void testDAGEdgeCount() {
         Graph g = new DAGGenerator().generateGraph(V, SEED);
         int expected = 5 * V;
-        check("DAG edge count = 5V (" + expected + ")", g.getEdgeList().size() == expected);
+        assertEquals(expected, g.getEdgeList().size(),
+                "DAG edge count = 5V (" + expected + ")");
     }
 
-    static void testDAGIsAcyclic() {
+    @Test
+    void testDAGIsAcyclic() {
         Graph g = new DAGGenerator().generateGraph(V, SEED);
         // If dagShortestPath doesn't throw, the graph is acyclic
-        boolean acyclic = true;
-        try {
-            g.dagShortestPath(0);
-        } catch (IllegalArgumentException e) {
-            acyclic = false;
-        }
-        check("DAG generator produces acyclic graph", acyclic);
+        assertDoesNotThrow(() -> g.dagShortestPath(0),
+                "DAG generator produces acyclic graph");
     }
 
-    // ── Deterministic: same seed → same graph ──────────────────
+    // Deterministic: same seed → same graph
 
-    static void testDeterministic() {
+    @Test
+    void testDeterministic() {
         Graph g1 = new SparseGraphGenerator().generateGraph(V, SEED);
         Graph g2 = new SparseGraphGenerator().generateGraph(V, SEED);
 
-        boolean edgesMatch = true;
         List<Edge> e1 = g1.getEdgeList();
         List<Edge> e2 = g2.getEdgeList();
-        if (e1.size() != e2.size()) {
-            edgesMatch = false;
-        } else {
-            for (int i = 0; i < e1.size(); i++) {
-                Edge a = e1.get(i), b = e2.get(i);
-                if (a.u() != b.u() || a.v() != b.v() || a.weight() != b.weight()) {
-                    edgesMatch = false;
-                    break;
-                }
-            }
+        assertEquals(e1.size(), e2.size(), "Same seed produces same edge count");
+
+        for (int i = 0; i < e1.size(); i++) {
+            Edge a = e1.get(i), b = e2.get(i);
+            assertEquals(a.u(), b.u(), "Edge " + i + " u matches");
+            assertEquals(a.v(), b.v(), "Edge " + i + " v matches");
+            assertEquals(a.weight(), b.weight(), "Edge " + i + " weight matches");
         }
-        check("Same seed produces identical Sparse graph", edgesMatch);
     }
 
-    // ── connectivity check via BFS on undirected adjList ───────
+    //connectivity check via BFS on undirected adjList
 
     private static boolean isConnected(Graph g) {
         int n = g.getV();
@@ -141,17 +123,5 @@ public class GraphGeneratorTest {
             }
         }
         return count == n;
-    }
-
-    // ── helper ──────────────────────────────────────────────────
-
-    private static void check(String name, boolean condition) {
-        if (condition) {
-            System.out.println("  ✓ " + name);
-            passed++;
-        } else {
-            System.out.println("  ✗ " + name);
-            failed++;
-        }
     }
 }

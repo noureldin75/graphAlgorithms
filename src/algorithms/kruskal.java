@@ -23,17 +23,52 @@ public class kruskal {
         List<Edge> mst = new java.util.ArrayList<>();
         for (Edge edge : alledges) {
             int u = edge.u();
-            int to = edge.v();          // renamed
+            int to = edge.v();
             int rootU = find(u);
-            int rootV = find(to);       // renamed
+            int rootV = find(to);
             if (rootU != rootV) {
                 mst.add(edge);
                 union(rootU, rootV);
-                if (mst.size() == this.v - 1) break;  // now correctly refers to vertex count
+                if (mst.size() == this.v - 1) {
+                break;
+                }
+
             }
         }
         return mst;
     }
+
+    //        List<Edge>[] buckets = new ArrayList[1001];
+    //        for (int i = 0; i <= 1000; i++) {
+    //            buckets[i] = new ArrayList<>();
+    //        }
+    //
+    //        for (Edge edge : alledges) {
+    //            buckets[edge.weight()].add(edge);
+    //        }
+    //
+    //        List<Edge> mst = new ArrayList<>();
+    //
+    //        for (int w = 1; w <= 1000; w++) {
+    //            for (Edge edge : buckets[w]) {
+    //                int u = edge.u();
+    //                int to = edge.v();
+    //
+    //                int rootU = find(u);
+    //                int rootV = find(to);
+    //
+    //                if (rootU != rootV) {
+    //                    mst.add(edge);
+    //                    union(rootU, rootV);
+    //
+    //                    if (mst.size() == this.v - 1) {
+    //                        return mst;
+    //                    }
+    //                }
+    //            }
+    //        }
+    //        return mst;
+    //    }
 
     private void union(int u, int v) {
         if(rank[u]>rank[v]){

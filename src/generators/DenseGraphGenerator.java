@@ -31,6 +31,7 @@ public class DenseGraphGenerator implements GraphGenerator {
                 if (j == i + 1 || rand.nextDouble() < 0.25) {
                     int weight = rand.nextInt(1000) + 1;
 
+
                     graph.addEdge(u, v, weight);
                 }
             }

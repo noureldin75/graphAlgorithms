@@ -28,7 +28,7 @@ public class Benchmark {
         // fixed source, same across all SSSP runs
         int source = new Random(BASE_SEED).nextInt(V_SIZE);
 
-        // ── 1. MST: Prim vs Kruskal
+        //  1. MST: Prim vs Kruskal
         section("1.  MST Construction  –  Prim's vs Kruskal's  (Sparse / Dense / Complete)");
 
         GraphGenerator[] mstGens  = { new SparseGraphGenerator(),
@@ -78,7 +78,7 @@ public class Benchmark {
         }
         System.out.println("  (all times in ms)");
 
-        // ── 2. SSSP Dijkstra on all four distributions (§4.1.2) ─────────────
+        //2. SSSP Dijkstra on all four distributions
         section("2.  SSSP (General)  –  Dijkstra's Algorithm  (all distributions)");
 
         GraphGenerator[] allGens = { new SparseGraphGenerator(),
@@ -115,7 +115,7 @@ public class Benchmark {
         }
         System.out.println("  (all times in ms)");
 
-        // ── 3. SSSP DAG: Dijkstra vs DAG Shortest Path (§4.1.3) ─────────────
+        // 3. SSSP DAG: Dijkstra vs DAG Shortest Path
         section("3.  SSSP (DAG)  –  Dijkstra  vs  DAG Shortest Path");
 
         // exact same graph instance for both algorithms
@@ -161,23 +161,18 @@ public class Benchmark {
                 speedup, pct);
         System.out.println("  (all times in ms)");
 
-        // correctness – both must produce identical distances
         boolean match = Arrays.equals(
                 dagGraph.dijkstra(DAG_SOURCE),
                 dagGraph.dagShortestPath(DAG_SOURCE));
         System.out.printf("%n  Correctness check  Dijkstra == DAG-SP : %s%n",
-                match ? "PASS ✓" : "FAIL ✗");
+                match ? "PASS" : "FAIL");
 
-        // ── CSV export ───────────────────────────────────────────────────────
 
         results.exportToCSV("benchmark_results.csv");
 
-        divider('=');
-        System.out.println("  Benchmark complete.");
-        divider('=');
+
     }
 
-    // ── Statistics ────────────────────────────────────────────────────────────
 
     private static double median(long[] ns) {
         long[] s = ns.clone(); Arrays.sort(s);
@@ -196,7 +191,6 @@ public class Benchmark {
         return Math.sqrt(sq / ns.length) / 1_000_000.0;
     }
 
-    // ── Warm-up helpers ───────────────────────────────────────────────────────
 
     private static void warmup(Graph g, boolean directed) {
         for (int i = 0; i < WARMUP_RUNS; i++) {
@@ -205,7 +199,6 @@ public class Benchmark {
         }
     }
 
-    // ── Formatting helpers ────────────────────────────────────────────────────
 
     private static void header(String title) {
         divider('=');

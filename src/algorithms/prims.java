@@ -3,13 +3,17 @@ package algorithms;
 import core.Edge;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Comparator;
 import java.util.List;
 import java.util.PriorityQueue;
 
-
 public class prims {
-    private record Pair(int vertex, int weight) {}
+    private record Pair(int vertex, int weight) implements Comparable<Pair> {
+        @Override
+        public int compareTo(Pair o) {
+
+            return Integer.compare(this.weight, o.weight);
+        }
+    }
 
     private final int V;
     private boolean[] visited;
@@ -24,7 +28,7 @@ public class prims {
     }
 
     public List<Edge> primMST(List<List<Edge>> adjlist) {
-        PriorityQueue<Pair> pq = new PriorityQueue<>(Comparator.comparingInt(p -> p.weight()));
+        PriorityQueue<Pair> pq = new PriorityQueue<>();
 
         Arrays.fill(key, Integer.MAX_VALUE);
         Arrays.fill(parent, -1);
